@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Political Sentiment Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="text-center my-5">
+            <h1 class="display-4">🗳️ Sentiment Analyzer</h1>
+            <p class="lead">Analyze public sentiment about political parties,OR other controversy  from YouTube comments</p>
+        </header>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h3>Analysis Parameters</h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="party1" class="form-label">First Preferences</label>
+                                <input type="text" class="form-control" id="party1" name="party1" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="party2" class="form-label">Second Preferences</label>
+                                <input type="text" class="form-control" id="party2" name="party2" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="purpose" class="form-label">Analysis Purpose</label>
+                                <select class="form-select" id="purpose" name="purpose">
+                                    <option value="election prediction">Election Prediction</option>
+                                    <option value="policy feedback analysis">Policy Feedback</option>
+                                    <option value="public opinion tracking">Public Opinion Tracking</option>
+                                    <option value="manifesto development">Manifesto Development</option>
+                                    <option value="custom">Custom Purpose</option>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="query1" class="form-label">Search Query for Party 1</label>
+                                <input type="text" class="form-control" id="query1" name="query1">
+                                <div class="form-text">Leave blank for default: "what is the purpose"</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="query2" class="form-label">Search Query for Party 2</label>
+                                <input type="text" class="form-control" id="query2" name="query2">
+                                <div class="form-text">Leave blank for default: "what is the purpose"</div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="num_videos" class="form-label">Videos per Party</label>
+                                    <input type="number" class="form-control" id="num_videos" name="num_videos" value="5" min="1" max="20">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="comments_per_video" class="form-label">Comments per Video</label>
+                                    <input type="number" class="form-control" id="comments_per_video" name="comments_per_video" value="50" min="1" max="100">
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">Analyze Sentiment</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                
+                {% if report %}
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h3>Analysis Results</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>Parties Analyzed</h4>
+                        <p>{{ config.parties[0] }} vs {{ config.parties[1] }}</p>
+                        
+                        <h4>Overall Sentiment</h4>
+                        <ul>
+                            {% for sentiment, count in sentiment_counts.items() %}
+                            <li>{{ sentiment }}: {{ count }} comments</li>
+                            {% endfor %}
+                        </ul>
+                        
+                        <h4>Party Breakdown</h4>
+                        {% for party, data in party_sentiments.items() %}
+                        <div class="party-breakdown mb-3">
+                            <h5>{{ party }}</h5>
+                            <p>Total Comments: {{ data.count }}</p>
+                            <p>Average Confidence: {{ "%.2f"|format(data.avg_confidence) }}</p>
+                            <ul>
+                                {% for sentiment, count in data.sentiments.items() %}
+                                <li>{{ sentiment }}: {{ count }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if plot_url %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h3>Visualizations</h3>
+            </div>
+            <div class="card-body text-center">
+                <img src="data:image/png;base64,{{ plot_url }}" alt="Sentiment Analysis Visualizations" class="img-fluid">
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if report %}
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white">
+                <h3>Detailed Report</h3>
+            </div>
+            <div class="card-body">
+                <pre class="report-content">{{ report }}</pre>
+            </div>
+            <div class="card-footer text-center">
+                <button class="btn btn-secondary" onclick="downloadReport()">Download Report</button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <footer class="text-center py-4 mt-5 bg-light">
+        <p>Political Sentiment Analyzer &copy; 2023</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function downloadReport() {
+            const reportContent = document.querySelector('.report-content').textContent;
+            const blob = new Blob([reportContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sentiment_analysis_report.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
